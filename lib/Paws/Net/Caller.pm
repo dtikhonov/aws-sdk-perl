@@ -6,10 +6,11 @@ package Paws::Net::Caller {
   has debug              => ( is => 'rw', required => 0, default => sub { 0 } );
   has ua => (is => 'rw', required => 1, lazy => 1,
     default     => sub {
-        use HTTP::Tiny;
-        HTTP::Tiny->new(
-            'agent' => 'AWS Perl SDK ' . $Paws::VERSION,
-        );
+        use LWP::UserAgent;
+        my $ua = LWP::UserAgent->new;
+        $ua->env_proxy;
+        push @{ $ua->requests_redirectable }, 'POST';
+        return $ua;
     }
   );
 
@@ -22,16 +23,14 @@ package Paws::Net::Caller {
     # HTTP::Tiny derives the Host header from the URL. It's an error to set it.
     delete $headers->{Host};
 
-    my $response = $self->ua->request(
-      $requestObj->method,
+    my $method = lc $requestObj->method;
+    my $response = $self->ua->$method(
       $requestObj->url,
-      {
-        headers => $headers,
-        (defined $requestObj->content)?(content => $requestObj->content):(),
-      }
+        %$headers,
+        (defined $requestObj->content)?(Content => $requestObj->content):(),
     );
 
-    my $res = $service->handle_response($call_object, $response->{status}, $response->{content}, $response->{headers});
+    my $res = $service->handle_response($call_object, $response->code, $response->content, $response->headers);
     if (not ref($res)){
       return $res;
     } elsif ($res->isa('Paws::Exception')) {
