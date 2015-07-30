@@ -179,6 +179,7 @@ package Paws::API::Caller {
                 my $xml_keys = $att_class->xml_keys;
                 my $xml_values = $att_class->xml_values;
 
+                my $workaround;
                 if ($value_ref eq 'HASH') {
                   if (exists $value->{ member }) {
                     $value = $value->{ member };
@@ -187,12 +188,15 @@ package Paws::API::Caller {
                   } elsif (keys %$value == 1) {
                     $value = $value->{ (keys %$value)[0] };
                   } else {
+                    $workaround = 1;
                     #die "Can't detect the item that has the array in the response hash";
                   }
                   $value_ref = ref($value);
                 }
         
-                if ($value_ref eq 'ARRAY') {
+                if ($workaround) {
+                  $args{ $att } = $att_class->new(Map => $value);
+                } elsif ($value_ref eq 'ARRAY') {
                   $args{ $att } = $att_class->new(Map => { map { ( $_->{ $xml_keys } => $_->{ $xml_values } ) } @$value } );
                 } elsif ($value_ref eq 'HASH') {
                   $args{ $att } = $att_class->new(Map => { $value->{ $xml_keys } => $value->{ $xml_values } } );
@@ -201,6 +205,7 @@ package Paws::API::Caller {
                 my $xml_keys = $att_class->xml_keys;
                 my $xml_values = $att_class->xml_values;
 
+                my $workaround;
                 if ($value_ref eq 'HASH') {
                   if (exists $value->{ member }) {
                     $value = $value->{ member };
@@ -210,12 +215,16 @@ package Paws::API::Caller {
                     $value = $value->{ (keys %$value)[0] };
                   } else {
                     #die "Can't detect the item that has the array in the response hash";
+                    $workaround = 1;
                   }
                   $value_ref = ref($value);
                 }
         
-
-                $args{ $att } = $att_class->new(map { ($_->{ $xml_keys } => $_->{ $xml_values }) } @$value);
+                if ($workaround) {
+                  $args{ $att } = $att_class->new(%$value);
+                } else {
+                  $args{ $att } = $att_class->new(map { ($_->{ $xml_keys } => $_->{ $xml_values }) } @$value);
+                }
               } else {
                 $args{ $att } = $self->new_from_struct($att_class, $value);
               }
